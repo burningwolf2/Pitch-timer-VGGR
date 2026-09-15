@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Timer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #161616;
+    --bg-raised: #1e1e1e;
+    --text-dim: #8a8a8a;
+    --text-bright: #ececec;
+    --ok: #7FA88C;
+    --warn: #F2A93B;
+    --danger: #D64545;
+    --border: #2c2c2c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text-bright);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .status-label {
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+    height: 18px;
+    transition: color 0.3s ease;
+  }
+
+  .display {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(72px, 22vw, 168px);
+    line-height: 1;
+    color: var(--ok);
+    transition: color 0.4s ease;
+    cursor: default;
+    user-select: none;
+    text-align: center;
+  }
+
+  .display.warn { color: var(--warn); }
+  .display.danger {
+    color: var(--danger);
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .set-time {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .set-time input {
+    width: 64px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 4px;
+  }
+
+  .set-time input:focus {
+    outline: 2px solid var(--warn);
+    outline-offset: 1px;
+  }
+
+  .set-time span {
+    color: var(--text-dim);
+    font-size: 18px;
+  }
+
+  .presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .presets button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .presets button:hover {
+    border-color: var(--text-dim);
+    color: var(--text-bright);
+  }
+
+  .presets button.active {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .controls button {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 14px 32px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s ease, opacity 0.2s ease;
+  }
+
+  .controls button:active {
+    transform: scale(0.97);
+  }
+
+  #startPause {
+    background: var(--warn);
+    color: #1a1200;
+  }
+
+  #reset {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  #reset:hover {
+    color: var(--text-bright);
+    border-color: var(--text-dim);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--warn);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .display.danger { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="status-label" id="statusLabel">set your pitch length</div>
+  <div class="display" id="display">05:00</div>
+
+  <div class="set-time">
+    <input type="number" id="minInput" value="5" min="0" max="99" aria-label="Minutes">
+    <span>min</span>
+    <input type="number" id="secInput" value="0" min="0" max="59" aria-label="Seconds">
+    <span>sec</span>
+  </div>
+
+  <div class="presets" id="presets">
+    <button data-secs="60">1 min</button>
+    <button data-secs="180">3 min</button>
+    <button data-secs="300" class="active">5 min</button>
+    <button data-secs="600">10 min</button>
+  </div>
+
+  <div class="controls">
+    <button id="startPause">Start</button>
+    <button id="reset">Reset</button>
+  </div>
+</div>
+
+<script>
+  const display = document.getElementById('display');
+  const statusLabel = document.getElementById('statusLabel');
+  const startPauseBtn = document.getElementById('startPause');
+  const resetBtn = document.getElementById('reset');
+  const minInput = document.getElementById('minInput');
+  const secInput = document.getElementById('secInput');
+  const presetButtons = document.querySelectorAll('.presets button');
+
+  let totalSeconds = 300;
+  let remaining = 300;
+  let running = false;
+  let intervalId = null;
+
+  function format(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+
+  function render() {
+    display.textContent = format(Math.max(remaining, 0));
+
+    display.classList.remove('warn', 'danger');
+    if (remaining <= 0) {
+      statusLabel.textContent = "time's up";
+      display.classList.add('danger');
+    } else if (remaining <= 30) {
+      statusLabel.textContent = 'wrap it up';
+      display.classList.add('danger');
+    } else if (remaining <= totalSeconds * 0.2) {
+      statusLabel.textContent = 'winding down';
+      display.classList.add('warn');
+    } else if (running) {
+      statusLabel.textContent = 'pitching';
+    } else {
+      statusLabel.textContent = 'set your pitch length';
+    }
+  }
+
+  function tick() {
+    remaining -= 1;
+    if (remaining <= 0) {
+      remaining = 0;
+      render();
+      pause();
+      return;
+    }
+    render();
+  }
+
+  function start() {
+    running = true;
+    startPauseBtn.textContent = 'Pause';
+    intervalId = setInterval(tick, 1000);
+    render();
+  }
+
+  function pause() {
+    running = false;
+    startPauseBtn.textContent = 'Start';
+    clearInterval(intervalId);
+    render();
+  }
+
+  function reset() {
+    pause();
+    remaining = totalSeconds;
+    render();
+  }
+
+  function setTotalFromInputs() {
+    const m = Math.max(0, Math.min(99, parseInt(minInput.value) || 0));
+    const s = Math.max(0, Math.min(59, parseInt(secInput.value) || 0));
+    totalSeconds = m * 60 + s;
+    remaining = totalSeconds;
+    presetButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.secs) === totalSeconds));
+    render();
+  }
+
+  startPauseBtn.addEventListener('click', () => {
+    if (remaining <= 0) return;
+    running ? pause() : start();
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  minInput.addEventListener('change', () => { if (!running) setTotalFromInputs(); });
+  secInput.addEventListener('change', () => { if (!running) setTotalFromInputs(); });
+
+  presetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (running) return;
+      const secs = parseInt(btn.dataset.secs);
+      minInput.value = Math.floor(secs / 60);
+      secInput.value = secs % 60;
+      setTotalFromInputs();
+    });
+  });
+
+  render();
+</script>
+
+</body>
+</html>
