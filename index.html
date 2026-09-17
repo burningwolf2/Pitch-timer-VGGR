@@ -15,7 +15,8 @@
     --rule: #37321f;
     --cyan: #6FE3D6;
     --green: #7FA88C;
-    --red: #A8433D;
+    --blue: #5B9FE0;
+    --red: #D6524A;
   }
 
   * { box-sizing: border-box; }
@@ -67,10 +68,7 @@
     margin-top: -14px;
   }
 
-  .highlight {
-    padding: 0 4px;
-    border-radius: 2px;
-  }
+  .highlight { padding: 0 4px; border-radius: 2px; }
   .hl-cyan { color: var(--cyan); text-shadow: 0 0 8px rgba(111,227,214,0.4); }
   .hl-green { color: var(--green); text-shadow: 0 0 8px rgba(127,168,140,0.35); }
 
@@ -121,12 +119,7 @@
     font-size: 13px;
     font-style: italic;
   }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--rule);
-  }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
 
   .join-row { display: flex; gap: 8px; width: 100%; }
 
@@ -160,11 +153,7 @@
     gap: 12px;
   }
 
-  .code-box .label {
-    font-size: 13px;
-    font-style: italic;
-    color: var(--ink-dim);
-  }
+  .code-box .label { font-size: 13px; font-style: italic; color: var(--ink-dim); }
 
   .code-value {
     font-family: 'EB Garamond', serif;
@@ -196,13 +185,10 @@
     color: var(--ink-dim);
     text-align: center;
     height: 20px;
+    transition: color 0.3s ease;
   }
 
-  .sync-display-wrap {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+  .sync-display-wrap { display: flex; justify-content: center; align-items: center; }
 
   .sync-display {
     font-family: 'EB Garamond', serif;
@@ -213,25 +199,20 @@
     transition: font-size 0.3s ease, color 0.3s ease, text-shadow 0.3s ease;
   }
 
-  .sync-display.normal {
-    font-size: clamp(56px, 18vw, 128px);
-    color: var(--cyan);
-    text-shadow: 0 0 30px rgba(111,227,214,0.35), 0 0 70px rgba(111,227,214,0.12);
-  }
+  .sync-display.normal { font-size: clamp(56px, 18vw, 128px); }
+  .sync-display.discreet { font-size: 20px; font-weight: 500; text-shadow: none !important; color: var(--ink-dim) !important; }
 
-  .sync-display.discreet {
-    font-size: 20px;
-    color: var(--ink-dim);
-    font-weight: 500;
-    text-shadow: none;
-  }
+  .sync-display.normal.color-blue { color: var(--blue); text-shadow: 0 0 30px rgba(91,159,224,0.4), 0 0 70px rgba(91,159,224,0.15); }
+  .sync-display.normal.color-red { color: var(--red); text-shadow: 0 0 30px rgba(214,82,74,0.4), 0 0 70px rgba(214,82,74,0.15); }
+
+  .status-label.color-blue { color: var(--blue); }
+  .status-label.color-red { color: var(--red); }
 
   .sync-display.flash { animation: flash 0.5s ease; }
-
   @keyframes flash {
-    0% { color: var(--cyan); text-shadow: 0 0 30px rgba(111,227,214,0.35); }
-    40% { color: var(--red); text-shadow: 0 0 34px rgba(168,67,61,0.5); }
-    100% { color: var(--cyan); text-shadow: 0 0 30px rgba(111,227,214,0.35); }
+    0% { opacity: 1; }
+    35% { opacity: 0.1; }
+    100% { opacity: 1; }
   }
 
   .toggle-row {
@@ -255,12 +236,7 @@
     line-height: 1.6;
   }
 
-  hr.rule {
-    width: 100%;
-    border: none;
-    border-top: 1px solid var(--rule);
-    margin: 0;
-  }
+  hr.rule { width: 100%; border: none; border-top: 1px solid var(--rule); margin: 0; }
 </style>
 </head>
 <body>
@@ -268,7 +244,7 @@
 <div class="stage">
 
   <h1>Voice Switch</h1>
-  <div class="subtitle">only one of you may speak at a time</div>
+  <div class="subtitle">only one of you may speak at a time — <span class="highlight" style="color: var(--blue);">blue</span> or <span class="highlight" style="color: var(--red);">red</span> shows who</div>
 
   <div id="setup" class="setup-box">
     <div class="status-label">no session open</div>
@@ -301,7 +277,7 @@
 
     <label class="toggle-row">
       <input type="checkbox" id="discreetToggle">
-      Discreet mode — small, quiet, no flash
+      Discreet mode — small, quiet, no color/flash
     </label>
 
     <hr class="rule">
@@ -418,6 +394,7 @@
     const cycle = getCycle(curSeed, curStart, now);
     const discreet = discreetToggle.checked;
     syncDisplay.className = 'sync-display ' + (discreet ? 'discreet' : 'normal');
+    syncStatus.className = 'status-label';
 
     if (cycle.waiting) {
       syncStatus.textContent = 'the parchment stirs… ' + Math.ceil(cycle.remaining) + 's';
@@ -425,7 +402,15 @@
       return;
     }
 
-    syncStatus.textContent = discreet ? '' : 'your turn ends in';
+    const isBlue = cycle.index % 2 === 0;
+    const colorClass = isBlue ? 'color-blue' : 'color-red';
+    const colorName = isBlue ? 'Blue' : 'Red';
+
+    if (!discreet) {
+      syncDisplay.classList.add(colorClass);
+      syncStatus.classList.add(colorClass);
+    }
+    syncStatus.textContent = discreet ? '' : (colorName + ' is speaking — switches in');
     syncDisplay.textContent = Math.ceil(cycle.remaining);
 
     if (cycle.index !== lastCycleIndex) {
